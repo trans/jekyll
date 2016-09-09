@@ -32,11 +32,54 @@ module Jekyll
         categories_from_path(collection.relative_directory)
       end
 
-      data.default_proc = proc do |_, key|
-        site.frontmatter_defaults.find(relative_path, collection.label, key)
+      data.default_proc = ddp
+      trigger_hooks(:post_init)
+    end
+
+    def ddp
+      return proc do |_, key|
+        @site.frontmatter_defaults.find(
+          relative_path, @collection.label, key
+        )
+      end
+    end
+
+    def marshal
+      Marshal.dump(
+        self
+      )
+    end
+
+    def restore_state(site, collection)
+      @collection = collection
+      @site = site
+    end
+
+    def marshal_dump
+      @data.default_proc = nil
+      blacklist = [:@site, :@collection, :@to_liquid]
+      Jekyll.logger.debug "Skipping the marshal of vars #{
+        blacklist
+      }."
+
+      (instance_variables - blacklist).each_with_object({}) do |var, obj|
+        Jekyll.logger.debug "Marshaling the variable #{var} in Document"
+        obj[var] = instance_variable_get(
+          var
+        )
+      end
+    end
+
+    def marshal_load(data)
+      data.each do |k, v|
+        instance_variable_set(
+          k, v
+        )
       end
 
-      trigger_hooks(:post_init)
+      @data.
+        default_proc = ddp
+      self
     end
 
     # Fetch the Document's data.
